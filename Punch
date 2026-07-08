@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Punch — Work Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#111316;
+    --surface:#1b1e23;
+    --surface2:#24282e;
+    --line:#31363d;
+    --accent:#f2a900;
+    --accent-soft:#3a2f0f;
+    --text:#eef0f2;
+    --text-dim:#8b939b;
+    --danger:#e8604c;
+    --danger-soft:#3a1f1c;
+    --good:#5fc48d;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    height:100%;overscroll-behavior-y:contain;}
+  input, button, textarea{font-family:inherit;}
+  .mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;}
+
+  #app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;
+    padding-bottom:96px;}
+
+  header{padding:16px 18px 10px;display:flex;align-items:baseline;justify-content:space-between;
+    position:sticky;top:0;background:var(--bg);z-index:5;border-bottom:1px solid var(--line);}
+  header .brand{display:flex;align-items:center;gap:8px;}
+  header .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 8px var(--accent);}
+  header h1{font-size:15px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;margin:0;}
+  header .date{font-size:12px;color:var(--text-dim);}
+  header .newday{background:none;border:1px solid var(--line);color:var(--text-dim);
+    font-size:11px;font-weight:600;padding:6px 10px;border-radius:20px;letter-spacing:.03em;}
+  header .newday:active{background:var(--surface2);}
+
+  .name-row{padding:6px 18px 14px;border-bottom:1px solid var(--line);}
+  .name-row input{width:100%;background:transparent;border:none;color:var(--text-dim);
+    font-size:12px;padding:0;outline:none;}
+  .name-row input::placeholder{color:#565c63;}
+
+  /* Big clock */
+  .readout{padding:22px 18px 16px;text-align:center;border-bottom:1px solid var(--line);}
+  .readout .label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);
+    margin-bottom:6px;}
+  .readout .time{font-size:48px;font-weight:600;color:var(--accent);line-height:1;}
+  .readout .sub{margin-top:8px;font-size:12px;color:var(--text-dim);}
+
+  .progress-wrap{margin-top:14px;}
+  .progress-track{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden;}
+  .progress-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width .3s;}
+  .progress-label{margin-top:7px;font-size:12.5px;color:var(--text-dim);display:flex;justify-content:space-between;}
+  .progress-label .remaining{font-weight:700;color:var(--good);}
+  .progress-label .remaining.over{color:var(--danger);}
+
+  /* Start row */
+  .start-block{padding:16px 18px;border-bottom:1px solid var(--line);}
+  .start-block .lbl{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--text-dim);
+    margin-bottom:8px;}
+  .start-presets{display:flex;gap:8px;margin-bottom:10px;}
+  .preset-btn{background:var(--surface2);border:1px solid var(--line);color:var(--text);
+    font-size:13px;font-weight:600;padding:9px 14px;border-radius:20px;flex-shrink:0;}
+  .preset-btn.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  .start-inputwrap{display:flex;align-items:center;gap:10px;}
+  .start-inputwrap input[type="time"]{flex:1;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);padding:12px 14px;font-size:18px;color:var(--text);outline:none;
+    color-scheme:dark;}
+  .start-inputwrap input[type="time"]:focus{border-color:var(--accent);}
+
+  /* Rows */
+  .rows{padding:6px 18px 4px;display:flex;flex-direction:column;gap:10px;}
+  .row-empty{padding:26px 4px;text-align:center;color:var(--text-dim);font-size:13px;}
+  .task{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px;transition:opacity .15s;}
+  .task.skipped{opacity:.45;}
+  .task-top{display:flex;align-items:center;gap:8px;}
+  .badge{width:26px;height:26px;border-radius:8px;background:var(--surface2);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+    color:var(--text-dim);flex-shrink:0;}
+  .dur-input{width:64px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;
+    padding:10px 8px;font-size:16px;color:var(--text);text-align:center;outline:none;}
+  .dur-input:focus{border-color:var(--accent);}
+  .task-arrow{color:var(--text-dim);font-size:14px;}
+  .task-clock{font-size:17px;font-weight:700;flex:1;}
+  .icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);
+    background:var(--surface2);display:flex;align-items:center;justify-content:center;
+    font-size:14px;color:var(--text-dim);flex-shrink:0;}
+  .icon-btn.on{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);}
+  .icon-btn:active{transform:scale(.94);}
+  .note-input{margin-top:8px;width:100%;background:transparent;border:none;border-top:1px dashed var(--line);
+    padding-top:8px;font-size:13px;color:var(--text-dim);outline:none;}
+  .note-input::placeholder{color:#565c63;}
+
+  /* Add controls */
+  .add-block{padding:14px 18px 6px;}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;-webkit-overflow-scrolling:touch;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{flex-shrink:0;background:var(--surface2);border:1px solid var(--line);color:var(--text);
+    font-size:13px;font-weight:600;padding:9px 16px;border-radius:20px;}
+  .chip:active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  .add-btn{width:100%;padding:13px;border-radius:var(--radius);border:1.5px dashed var(--line);
+    background:transparent;color:var(--text-dim);font-size:14px;font-weight:600;}
+  .add-btn:active{border-color:var(--accent);color:var(--accent);}
+
+  /* Footer */
+  footer{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);
+    padding:14px 18px calc(14px + env(safe-area-inset-bottom));}
+  .footer-inner{max-width:520px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;}
+  .footer-inner .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);}
+  .footer-inner .val{font-size:26px;font-weight:700;color:var(--accent);}
+
+  .hint{padding:16px 18px 4px;font-size:11.5px;color:#5b6167;line-height:1.5;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="brand"><span class="dot"></span><h1>Work Log</h1></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="date mono" id="dateLabel"></span>
+      <button class="newday" id="newDayBtn">New Day</button>
+    </div>
+  </header>
+
+  <div class="name-row">
+    <input id="employeeName" type="text" placeholder="Employee name (optional)" autocomplete="off">
+  </div>
+
+  <div class="readout">
+    <div class="label">Current Time</div>
+    <div class="time mono" id="bigClock">--:--</div>
+    <div class="sub" id="bigClockSub">Pick a start time to begin</div>
+    <div class="progress-wrap" id="progressWrap" style="display:none;">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label">
+        <span>Shift ends <span class="mono" id="shiftEndLabel"></span></span>
+        <span class="remaining mono" id="remainingLabel"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="start-block">
+    <div class="lbl">START TIME</div>
+    <div class="start-presets">
+      <button class="preset-btn" id="usualBtn">2:00 PM (usual)</button>
+    </div>
+    <div class="start-inputwrap">
+      <input id="startInput" type="time">
+    </div>
+  </div>
+
+  <div class="rows" id="rows"></div>
+
+  <div class="add-block">
+    <div class="chips" id="chips"></div>
+    <button class="add-btn" id="addBtn">+ Add task</button>
+  </div>
+
+  <div class="hint">Pick your start time (or tap "2:00 PM" for your usual shift), then log tasks — .30 = 30 min, .45 = 45 min, 1 = 1 hour, 1.15 = 1h 15m. Tap ☕ to mark a break so it's skipped from your total. The bar tracks progress toward a 10:30 PM shift end.</div>
+
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="lbl">Total Hours Worked</span>
+    <span class="val mono" id="totalHours">0:00</span>
+  </div>
+</footer>
+
+<script>
+const STORAGE_KEY = 'worklog-state-v2';
+const NAME_KEY = 'worklog-employee-name';
+const QUICK = ['.15', '.30', '.45', '1', '1.30', '2'];
+const USUAL_START = '14:00';   // 2:00 PM
+const SHIFT_END = 22.5;        // 10:30 PM
+
+let state = { startTime: '', rows: [] };
+
+function uid(){ return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function parseTimeInput(v){ // "HH:MM" from <input type=time>
+  if(!v) return null;
+  const parts = v.split(':').map(Number);
+  if(parts.length<2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+  return parts[0] + parts[1]/60;
+}
+function parseDurationHM(v){
+  if(v==='' || v===null || v===undefined) return 0;
+  const n = parseFloat(v);
+  if(isNaN(n)) return 0;
+  const intPart = Math.trunc(n);
+  const fracPart = Math.round((Math.abs(n)-Math.abs(intPart))*100);
+  return intPart + fracPart/60;
+}
+function formatClock12(hoursFloat){
+  if(hoursFloat===null || hoursFloat===undefined) return '—';
+  let total = ((hoursFloat%24)+24)%24;
+  let h = Math.floor(total);
+  let m = Math.round((total-h)*60);
+  if(m===60){ m=0; h+=1; }
+  const ampm = h<12 ? 'AM' : 'PM';
+  let hh = h%12; if(hh===0) hh=12;
+  return `${hh}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+function formatHM(hoursFloat){
+  let h = Math.floor(hoursFloat);
+  let m = Math.round((hoursFloat-h)*60);
+  if(m===60){ m=0; h+=1; }
+  return `${h}:${String(m).padStart(2,'0')}`;
+}
+function formatRemaining(hoursFloat){
+  if(hoursFloat<=0) return 'Shift complete';
+  const h = Math.floor(hoursFloat);
+  const m = Math.round((hoursFloat-h)*60);
+  return `${h}h ${m}m left`;
+}
+
+async function saveState(){
+  try{ await window.storage.set(STORAGE_KEY, JSON.stringify(state), false); }catch(e){}
+}
+async function saveName(name){
+  try{ await window.storage.set(NAME_KEY, name, false); }catch(e){}
+}
+async function loadAll(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY);
+    if(res && res.value) state = JSON.parse(res.value);
+  }catch(e){}
+  try{
+    const res2 = await window.storage.get(NAME_KEY);
+    if(res2 && res2.value) document.getElementById('employeeName').value = res2.value;
+  }catch(e){}
+}
+
+function setDateLabel(){
+  const d = new Date();
+  document.getElementById('dateLabel').textContent = d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+}
+
+function recompute(){
+  document.getElementById('startInput').value = state.startTime;
+  document.getElementById('usualBtn').classList.toggle('active', state.startTime===USUAL_START);
+
+  const start = parseTimeInput(state.startTime);
+  let clock = start;
+  let total = 0;
+  state.rows.forEach(row=>{
+    const dur = parseDurationHM(row.raw);
+    clock = (clock===null) ? null : clock + dur;
+    const el = document.getElementById('clock-'+row.id);
+    if(el) el.textContent = clock===null ? '—' : formatClock12(clock);
+    if(!row.skip) total += dur;
+  });
+
+  const bigClockEl = document.getElementById('bigClock');
+  const bigSubEl = document.getElementById('bigClockSub');
+  const progressWrap = document.getElementById('progressWrap');
+
+  if(clock===null){
+    bigClockEl.textContent = '--:--';
+    bigSubEl.textContent = 'Pick a start time to begin';
+    progressWrap.style.display = 'none';
+  }else{
+    bigClockEl.textContent = formatClock12(clock);
+    bigSubEl.textContent = state.rows.length ? 'after last task' : 'shift start';
+    progressWrap.style.display = 'block';
+
+    const shiftLen = Math.max(SHIFT_END - start, 0.25); // guard against a start after 10:30pm
+    const elapsed = clock - start;
+    const pct = Math.max(0, Math.min(100, (elapsed/shiftLen)*100));
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('shiftEndLabel').textContent = formatClock12(SHIFT_END);
+    const remaining = SHIFT_END - clock;
+    const remLabel = document.getElementById('remainingLabel');
+    remLabel.textContent = formatRemaining(remaining);
+    remLabel.classList.toggle('over', remaining<=0);
+  }
+
+  document.getElementById('totalHours').textContent = formatHM(total);
+  saveState();
+}
+
+function renderRows(){
+  const container = document.getElementById('rows');
+  container.innerHTML = '';
+  if(state.rows.length===0){
+    const empty = document.createElement('div');
+    empty.className = 'row-empty';
+    empty.textContent = 'No tasks yet — add one below';
+    container.appendChild(empty);
+    return;
+  }
+  state.rows.forEach((row, idx)=>{
+    const el = document.createElement('div');
+    el.className = 'task' + (row.skip ? ' skipped' : '');
+    el.innerHTML = `
+      <div class="task-top">
+        <div class="badge">${idx+1}</div>
+        <input class="dur-input mono" type="number" inputmode="decimal" step="any" placeholder=".30" value="${row.raw}">
+        <span class="task-arrow">→</span>
+        <span class="task-clock mono" id="clock-${row.id}">—</span>
+        <button class="icon-btn skip-btn ${row.skip?'on':''}" title="Mark as break">☕</button>
+        <button class="icon-btn del-btn" title="Delete">✕</button>
+      </div>
+      <input class="note-input" type="text" placeholder="note (optional)" value="${row.note||''}">
+    `;
+    const durInput = el.querySelector('.dur-input');
+    durInput.addEventListener('input', e=>{ row.raw = e.target.value; recompute(); });
+    const noteInput = el.querySelector('.note-input');
+    noteInput.addEventListener('input', e=>{ row.note = e.target.value; saveState(); });
+    el.querySelector('.skip-btn').addEventListener('click', ()=>{
+      row.skip = !row.skip;
+      el.classList.toggle('skipped', row.skip);
+      el.querySelector('.skip-btn').classList.toggle('on', row.skip);
+      recompute();
+    });
+    el.querySelector('.del-btn').addEventListener('click', ()=>{
+      state.rows = state.rows.filter(r=>r.id!==row.id);
+      renderRows();
+      recompute();
+    });
+    container.appendChild(el);
+  });
+}
+
+function addRow(prefill=''){
+  state.rows.push({ id: uid(), raw: prefill, skip: false, note: '' });
+  renderRows();
+  recompute();
+  const inputs = document.querySelectorAll('.dur-input');
+  const last = inputs[inputs.length-1];
+  if(last && !prefill) last.focus();
+}
+
+function renderChips(){
+  const wrap = document.getElementById('chips');
+  wrap.innerHTML = '';
+  QUICK.forEach(q=>{
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = q;
+    b.addEventListener('click', ()=> addRow(q));
+    wrap.appendChild(b);
+  });
+}
+
+document.getElementById('startInput').addEventListener('input', e=>{
+  state.startTime = e.target.value;
+  recompute();
+});
+document.getElementById('usualBtn').addEventListener('click', ()=>{
+  state.startTime = USUAL_START;
+  recompute();
+});
+document.getElementById('addBtn').addEventListener('click', ()=> addRow(''));
+document.getElementById('employeeName').addEventListener('input', e=> saveName(e.target.value));
+document.getElementById('newDayBtn').addEventListener('click', ()=>{
+  if(confirm('Start a new day? This clears the start time and all tasks.')){
+    state = { startTime:'', rows:[] };
+    renderRows();
+    recompute();
+  }
+});
+
+(async function init(){
+  setDateLabel();
+  await loadAll();
+  renderChips();
+  renderRows();
+  recompute();
+})();
+</script>
+</body>
+</html>
