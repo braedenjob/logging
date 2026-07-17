@@ -125,7 +125,9 @@
   .notes-block{padding:14px 18px 4px;}
   .notes-block .lbl{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--text-dim);
     margin-bottom:8px;}
-  .notes-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .notes-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;
+    flex-wrap:wrap;gap:8px;}
+  .notes-actions{display:flex;gap:8px;flex-wrap:wrap;}
   .sort-btn{background:var(--surface2);border:1px solid var(--line);color:var(--text-dim);
     font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:20px;}
   .sort-btn.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
@@ -205,7 +207,11 @@
   <div class="notes-block">
     <div class="notes-toolbar">
       <div class="lbl" style="margin-bottom:0;">NOTES</div>
-      <button class="sort-btn" id="sortLocationBtn">Sort by Location</button>
+      <div class="notes-actions">
+        <button class="sort-btn" id="checkAllBtn">☑ Select all</button>
+        <button class="sort-btn" id="uncheckAllBtn">☐ Unselect all</button>
+        <button class="sort-btn" id="sortLocationBtn">Sort by Location</button>
+      </div>
     </div>
     <div class="notes-headers"><span></span><span>Name</span><span>Location</span><span></span></div>
     <div class="notes-rows" id="notesRows"></div>
@@ -488,6 +494,12 @@ function renderNotesGrid(){
 
   updateNotesCount();
 }
+function setAllNotesChecked(value){
+  state.notes.forEach(r => r.checked = value);
+  renderNotesGrid();
+  saveState();
+}
+
 function addNoteRow(){
   state.notes.push({name:'', location:'', checked:false});
   renderNotesGrid();
@@ -593,6 +605,8 @@ document.getElementById('usualBtn').addEventListener('click', ()=>{
 document.getElementById('addBtn').addEventListener('click', ()=> addRow(''));
 document.getElementById('addNoteRowBtn').addEventListener('click', addNoteRow);
 document.getElementById('sortLocationBtn').addEventListener('click', sortByLocation);
+document.getElementById('checkAllBtn').addEventListener('click', ()=> setAllNotesChecked(true));
+document.getElementById('uncheckAllBtn').addEventListener('click', ()=> setAllNotesChecked(false));
 document.getElementById('employeeName').addEventListener('input', e=> saveName(e.target.value));
 document.getElementById('exportBtn').addEventListener('click', exportData);
 document.getElementById('importBtn').addEventListener('click', ()=>{
