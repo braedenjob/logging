@@ -774,14 +774,14 @@ function exportData(){
     app: 'worklog',
     exportedAt: new Date().toISOString(),
     employeeName: document.getElementById('employeeName').value || '',
-    state
+    state,
+    calState
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const dateStr = new Date().toISOString().slice(0,10);
   a.href = url;
-  a.download = `worklog-backup-${dateStr}.json`;
+  a.download = 'worklog-backup.json';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -800,6 +800,13 @@ function importDataFromFile(file){
         rows: Array.isArray(incoming.rows) ? incoming.rows : [],
         notes: (incoming.notes && incoming.notes.length) ? incoming.notes : emptyNotes(6)
       };
+      if(payload.calState && typeof payload.calState === 'object'){
+        calState = {
+          rate: payload.calState.rate || '',
+          hours: payload.calState.hours || {}
+        };
+        saveCalState();
+      }
       if(payload.employeeName) document.getElementById('employeeName').value = payload.employeeName;
       renderNotesGrid();
       renderRows();
