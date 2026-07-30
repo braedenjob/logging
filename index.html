@@ -31,6 +31,47 @@
   #app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;
     padding-bottom:96px;}
 
+  .tabs{display:flex;gap:6px;padding:10px 18px 0;}
+  .tab-btn{flex:1;text-align:center;padding:9px;border-radius:20px;border:1px solid var(--line);
+    background:var(--surface2);color:var(--text-dim);font-size:12.5px;font-weight:700;letter-spacing:.03em;}
+  .tab-btn.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+
+  .cal-header{padding:16px 18px 6px;display:flex;align-items:center;justify-content:space-between;}
+  .cal-nav-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);
+    background:var(--surface2);color:var(--text);display:flex;align-items:center;justify-content:center;
+    font-size:16px;}
+  .cal-nav-btn:active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  .cal-month-label{font-size:15px;font-weight:700;}
+
+  .cal-summary{padding:10px 18px 4px;display:flex;gap:10px;}
+  .cal-summary-box{flex:1;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);padding:12px;text-align:center;}
+  .cal-summary-box .lbl{font-size:10px;color:var(--text-dim);letter-spacing:.08em;
+    text-transform:uppercase;margin-bottom:4px;}
+  .cal-summary-box .val{font-size:19px;font-weight:700;color:var(--accent);}
+
+  .rate-row{padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);}
+  .rate-row label{font-size:12px;color:var(--text-dim);flex-shrink:0;}
+  .rate-row input{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    padding:9px 11px;font-size:14px;color:var(--text);outline:none;}
+  .rate-row input:focus{border-color:var(--accent);}
+
+  .cal-grid{padding:14px 10px 6px;}
+  .cal-row{display:grid;grid-template-columns:repeat(7,1fr) 44px;gap:4px;margin-bottom:4px;}
+  .cal-daylabel{font-size:9px;color:var(--text-dim);text-align:center;padding-bottom:4px;
+    text-transform:uppercase;letter-spacing:.02em;}
+  .cal-cell{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px 1px 4px;
+    display:flex;flex-direction:column;align-items:center;min-height:50px;}
+  .cal-cell.blank{background:transparent;border-color:transparent;}
+  .cal-cell.today{border-color:var(--accent);}
+  .cal-daynum{font-size:9px;color:var(--text-dim);align-self:flex-start;margin-left:3px;}
+  .cal-input{width:100%;background:transparent;border:none;color:var(--text);text-align:center;
+    font-size:11.5px;outline:none;padding:2px 0 0;}
+  .cal-weektotal{background:var(--surface2);border:1px solid var(--line);border-radius:8px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:10.5px;font-weight:700;color:var(--accent);}
+  .cal-weektotal .wk-lbl{font-size:6.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;}
+
   header{padding:16px 18px 10px;display:flex;align-items:baseline;justify-content:space-between;
     position:sticky;top:0;background:var(--bg);z-index:5;border-bottom:1px solid var(--line);}
   header .brand{display:flex;align-items:center;gap:8px;}
@@ -170,6 +211,13 @@
     </div>
   </header>
 
+  <div class="tabs">
+    <button class="tab-btn active" id="tabLogBtn">Log</button>
+    <button class="tab-btn" id="tabCalBtn">Calendar</button>
+  </div>
+
+  <div id="logView">
+
   <div class="name-row">
     <input id="employeeName" type="text" placeholder="Employee name (optional)" autocomplete="off">
   </div>
@@ -221,6 +269,38 @@
 
   <div class="hint">Type your start time — 2 or 6 or 9 for a plain hour, 230 or 830 for hour+minutes (defaults to PM), or 1400/0600 for exact 24-hour time. Tap "2:00 PM" for your usual shift. Then log tasks — .30 = 30 min, .45 = 45 min, 1 = 1 hour, 1.15 = 1h 15m. Tap ☕ to mark a break so it's skipped from your total.</div>
 
+  </div>
+
+  <div id="calendarView" style="display:none;">
+
+  <div class="cal-header">
+    <button class="cal-nav-btn" id="calPrevBtn">‹</button>
+    <div class="cal-month-label" id="calMonthLabel">—</div>
+    <button class="cal-nav-btn" id="calNextBtn">›</button>
+  </div>
+
+  <div class="cal-summary">
+    <div class="cal-summary-box">
+      <div class="lbl">Total Hours</div>
+      <div class="val mono" id="calTotalHours">0:00</div>
+    </div>
+    <div class="cal-summary-box">
+      <div class="lbl">Possible Pay</div>
+      <div class="val mono" id="calTotalPay">$0.00</div>
+    </div>
+  </div>
+
+  <div class="rate-row">
+    <label>Hourly rate ($)</label>
+    <input id="rateInput" type="number" inputmode="decimal" step="0.01" placeholder="e.g. 22.50">
+  </div>
+
+  <div class="cal-grid" id="calGrid"></div>
+
+  <div class="hint">Type hours per day using the same shorthand as tasks — .30 = 30 min, 8 = 8 hours, 8.30 = 8h 30m. Week totals show in the right column.</div>
+
+  </div>
+
 </div>
 
 <footer>
@@ -244,6 +324,12 @@ function defaultNotesGrid(){
   return emptyNotes(6); // index 2 (3rd row) is always treated as a fixed empty spacer
 }
 let state = { startRaw: '', rows: [], notes: defaultNotesGrid() };
+
+const CAL_STORAGE_KEY = 'worklog-calendar-v1';
+let calState = { rate: '', hours: {} };
+const today = new Date();
+let calViewYear = today.getFullYear();
+let calViewMonth = today.getMonth(); // 0-indexed
 
 function uid(){ return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
@@ -295,6 +381,9 @@ async function saveState(){
 async function saveName(name){
   try{ await window.storage.set(NAME_KEY, name, false); }catch(e){}
 }
+async function saveCalState(){
+  try{ await window.storage.set(CAL_STORAGE_KEY, JSON.stringify(calState), false); }catch(e){}
+}
 async function loadAll(){
   try{
     const res = await window.storage.get(STORAGE_KEY);
@@ -319,11 +408,142 @@ async function loadAll(){
     const res2 = await window.storage.get(NAME_KEY);
     if(res2 && res2.value) document.getElementById('employeeName').value = res2.value;
   }catch(e){}
+  try{
+    const res3 = await window.storage.get(CAL_STORAGE_KEY);
+    if(res3 && res3.value) calState = JSON.parse(res3.value);
+  }catch(e){}
 }
 
 function setDateLabel(){
   const d = new Date();
   document.getElementById('dateLabel').textContent = d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+}
+
+function dateKey(y,m,d){
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+function renderCalendar(){
+  const y = calViewYear, m = calViewMonth;
+  const label = new Date(y,m,1).toLocaleDateString(undefined,{month:'long', year:'numeric'});
+  document.getElementById('calMonthLabel').textContent = label;
+  document.getElementById('rateInput').value = calState.rate || '';
+
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const firstWeekday = new Date(y, m, 1).getDay(); // 0=Sun
+
+  const cells = [];
+  for(let i=0;i<firstWeekday;i++) cells.push(null);
+  for(let d=1; d<=daysInMonth; d++) cells.push(d);
+  while(cells.length % 7 !== 0) cells.push(null);
+
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  const dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const labelRow = document.createElement('div');
+  labelRow.className = 'cal-row';
+  dayLabels.forEach(dl=>{
+    const s = document.createElement('div');
+    s.className = 'cal-daylabel';
+    s.textContent = dl;
+    labelRow.appendChild(s);
+  });
+  const wkLabel = document.createElement('div');
+  wkLabel.className = 'cal-daylabel';
+  wkLabel.textContent = 'Wk';
+  labelRow.appendChild(wkLabel);
+  grid.appendChild(labelRow);
+
+  let monthTotal = 0;
+  const isCurrentMonth = (y === today.getFullYear() && m === today.getMonth());
+
+  for(let w=0; w<cells.length/7; w++){
+    const weekCells = cells.slice(w*7, w*7+7);
+    const row = document.createElement('div');
+    row.className = 'cal-row';
+    let weekTotal = 0;
+
+    weekCells.forEach(d=>{
+      const cell = document.createElement('div');
+      if(d === null){
+        cell.className = 'cal-cell blank';
+        row.appendChild(cell);
+        return;
+      }
+      const key = dateKey(y,m,d);
+      const isToday = isCurrentMonth && d === today.getDate();
+      cell.className = 'cal-cell' + (isToday ? ' today' : '');
+      const val = calState.hours[key] || '';
+      const hrs = parseDurationHM(val);
+      weekTotal += hrs;
+      monthTotal += hrs;
+      cell.innerHTML = `
+        <div class="cal-daynum">${d}</div>
+        <input class="cal-input mono" type="text" inputmode="decimal" value="${val}" placeholder="—">
+      `;
+      const input = cell.querySelector('.cal-input');
+      input.addEventListener('input', e=>{
+        calState.hours[key] = e.target.value;
+        saveCalState();
+        recomputeCalendarTotals();
+      });
+      row.appendChild(cell);
+    });
+
+    const wkTotalCell = document.createElement('div');
+    wkTotalCell.className = 'cal-weektotal';
+    wkTotalCell.innerHTML = `<div class="wk-lbl">wk</div><div>${weekTotal > 0 ? formatHM(weekTotal) : '—'}</div>`;
+    row.appendChild(wkTotalCell);
+
+    grid.appendChild(row);
+  }
+
+  document.getElementById('calTotalHours').textContent = formatHM(monthTotal);
+  const rate = parseFloat(calState.rate) || 0;
+  document.getElementById('calTotalPay').textContent = '$' + (monthTotal * rate).toFixed(2);
+}
+
+function recomputeCalendarTotals(){
+  // recompute totals without a full grid rebuild, so the input the user is typing in keeps focus
+  const y = calViewYear, m = calViewMonth;
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  let monthTotal = 0;
+  const weekTotals = [];
+  let currentWeekTotal = 0;
+  const firstWeekday = new Date(y, m, 1).getDay();
+  let dayOfWeek = firstWeekday;
+  for(let d=1; d<=daysInMonth; d++){
+    const key = dateKey(y,m,d);
+    const hrs = parseDurationHM(calState.hours[key] || '');
+    monthTotal += hrs;
+    currentWeekTotal += hrs;
+    dayOfWeek++;
+    if(dayOfWeek % 7 === 0){
+      weekTotals.push(currentWeekTotal);
+      currentWeekTotal = 0;
+    }
+  }
+  weekTotals.push(currentWeekTotal);
+
+  document.getElementById('calTotalHours').textContent = formatHM(monthTotal);
+  const rate = parseFloat(calState.rate) || 0;
+  document.getElementById('calTotalPay').textContent = '$' + (monthTotal * rate).toFixed(2);
+
+  const weekTotalEls = document.querySelectorAll('.cal-weektotal');
+  weekTotalEls.forEach((el, i)=>{
+    const t = weekTotals[i] || 0;
+    el.innerHTML = `<div class="wk-lbl">wk</div><div>${t > 0 ? formatHM(t) : '—'}</div>`;
+  });
+}
+
+function showTab(tab){
+  document.getElementById('logView').style.display = tab==='log' ? '' : 'none';
+  document.getElementById('calendarView').style.display = tab==='calendar' ? '' : 'none';
+  document.querySelector('footer').style.display = tab==='log' ? '' : 'none';
+  document.getElementById('tabLogBtn').classList.toggle('active', tab==='log');
+  document.getElementById('tabCalBtn').classList.toggle('active', tab==='calendar');
+  if(tab==='calendar') renderCalendar();
 }
 
 function recompute(){
@@ -618,12 +838,30 @@ document.getElementById('importFile').addEventListener('change', e=>{
   e.target.value = '';
 });
 document.getElementById('newDayBtn').addEventListener('click', ()=>{
-  if(confirm('Start a new day? This clears the start time and all tasks.')){
-    state = { startRaw:'', rows:[], notes: defaultNotesGrid() };
-    renderNotesGrid();
+  if(confirm('Start a new day? This clears the start time and all tasks. Your notes list stays as-is.')){
+    state.startRaw = '';
+    state.rows = [];
     renderRows();
     recompute();
   }
+});
+
+document.getElementById('tabLogBtn').addEventListener('click', ()=> showTab('log'));
+document.getElementById('tabCalBtn').addEventListener('click', ()=> showTab('calendar'));
+document.getElementById('calPrevBtn').addEventListener('click', ()=>{
+  calViewMonth--;
+  if(calViewMonth < 0){ calViewMonth = 11; calViewYear--; }
+  renderCalendar();
+});
+document.getElementById('calNextBtn').addEventListener('click', ()=>{
+  calViewMonth++;
+  if(calViewMonth > 11){ calViewMonth = 0; calViewYear++; }
+  renderCalendar();
+});
+document.getElementById('rateInput').addEventListener('input', e=>{
+  calState.rate = e.target.value;
+  saveCalState();
+  recomputeCalendarTotals();
 });
 
 (async function init(){
