@@ -335,7 +335,8 @@ const today = new Date();
 let calViewYear = today.getFullYear();
 let calViewMonth = today.getMonth(); // 0-indexed
 
-function uid(){ return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+let uidCounter = 0;
+function uid(){ uidCounter++; return 'r' + Date.now().toString(36) + '_' + uidCounter + '_' + Math.random().toString(36).slice(2,7); }
 
 function parseStartTimeText(raw){ // flexible typed shorthand: "2", "230", "1400", "0600"
   if(!raw) return null;
@@ -558,10 +559,11 @@ function recompute(){
   document.getElementById('startClockDisplay').textContent = start===null ? '—' : formatClock12(start);
   let clock = start;
   let total = 0;
-  state.rows.forEach(row=>{
+  const clockEls = document.querySelectorAll('#rows .task-clock');
+  state.rows.forEach((row, i)=>{
     const dur = parseDurationHM(row.raw);
     clock = (clock===null) ? null : clock + dur;
-    const el = document.getElementById('clock-'+row.id);
+    const el = clockEls[i];
     if(el) el.textContent = clock===null ? '—' : formatClock12(clock);
     if(!row.skip) total += dur;
   });
