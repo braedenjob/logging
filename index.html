@@ -71,6 +71,16 @@
     vertical-align:middle;}
   .cal-legend .swatch.a{background:rgba(242,169,0,.35);}
   .cal-legend .swatch.b{background:rgba(95,196,141,.35);}
+
+  .cal-periods{padding:0 18px 14px;display:flex;flex-direction:column;gap:8px;}
+  .period-card{display:flex;justify-content:space-between;align-items:center;padding:11px 13px;
+    border-radius:12px;border:1px solid var(--line);}
+  .period-card.period-a{background:rgba(242,169,0,.08);border-color:rgba(242,169,0,.3);}
+  .period-card.period-b{background:rgba(95,196,141,.08);border-color:rgba(95,196,141,.3);}
+  .period-range{font-size:12px;color:var(--text-dim);font-weight:600;}
+  .period-stats{display:flex;gap:16px;}
+  .period-hours{font-size:13.5px;font-weight:700;color:var(--text);}
+  .period-pay{font-size:13.5px;font-weight:700;color:var(--accent);}
   .cal-daynum{font-size:9px;color:var(--text-dim);align-self:flex-start;margin-left:3px;}
   .cal-input{width:100%;background:transparent;border:none;color:var(--text);text-align:center;
     font-size:11.5px;outline:none;padding:2px 0 0;}
@@ -324,6 +334,8 @@
     <input id="rateInput" type="number" inputmode="decimal" step="0.01" placeholder="e.g. 22.50">
   </div>
 
+  <div class="cal-periods" id="calPeriods"></div>
+
   <div class="cal-legend">
     <span><span class="swatch a"></span>Pay period A</span>
     <span><span class="swatch b"></span>Pay period B</span>
@@ -465,6 +477,69 @@ function getPayPeriodParity(y, m, d){
   const periodIndex = Math.floor(diffDays / 14);
   return ((periodIndex % 2) + 2) % 2; // always 0 or 1, even for dates before the anchor
 }
+function periodIndexForDate(y, m, d){
+  const date = new Date(y, m, d);
+  const diffDays = Math.round((date - PAY_PERIOD_ANCHOR) / 86400000);
+  return Math.floor(diffDays / 14);
+}
+function periodDateRange(periodIndex){
+  const start = new Date(PAY_PERIOD_ANCHOR);
+  start.setDate(start.getDate() + periodIndex*14);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 13);
+  return { start, end };
+}
+function periodHoursTotal(periodIndex){
+  const { start } = periodDateRange(periodIndex);
+  let total = 0;
+  for(let i=0;i<14;i++){
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    total += parseDurationHM(calState.hours[key] || '');
+  }
+  return total;
+}
+function fmtShortDate(d){
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+function renderPeriodSummaries(y, m){
+  const container = document.getElementById('calPeriods');
+  container.innerHTML = '';
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const seen = new Set();
+  const rate = parseFloat(calState.rate) || 0;
+  for(let d=1; d<=daysInMonth; d++){
+    const idx = periodIndexForDate(y, m, d);
+    if(seen.has(idx)) continue;
+    seen.add(idx);
+    const { start, end } = periodDateRange(idx);
+    const hours = periodHoursTotal(idx);
+    const pay = hours * rate;
+    const parity = ((idx % 2) + 2) % 2;
+    const card = document.createElement('div');
+    card.className = 'period-card ' + (parity===0 ? 'period-a' : 'period-b');
+    card.dataset.periodIndex = idx;
+    card.innerHTML = `
+      <div class="period-range">${fmtShortDate(start)} – ${fmtShortDate(end)}</div>
+      <div class="period-stats">
+        <span class="period-hours mono">${formatHM(hours)}</span>
+        <span class="period-pay mono">$${pay.toFixed(2)}</span>
+      </div>
+    `;
+    container.appendChild(card);
+  }
+}
+function updatePeriodSummaryValues(){
+  const rate = parseFloat(calState.rate) || 0;
+  document.querySelectorAll('.period-card').forEach(card=>{
+    const idx = parseInt(card.dataset.periodIndex, 10);
+    const hours = periodHoursTotal(idx);
+    const pay = hours * rate;
+    card.querySelector('.period-hours').textContent = formatHM(hours);
+    card.querySelector('.period-pay').textContent = '$' + pay.toFixed(2);
+  });
+}
 
 function renderCalendar(){
   const y = calViewYear, m = calViewMonth;
@@ -546,6 +621,8 @@ function renderCalendar(){
   document.getElementById('calTotalHours').textContent = formatHM(monthTotal);
   const rate = parseFloat(calState.rate) || 0;
   document.getElementById('calTotalPay').textContent = '$' + (monthTotal * rate).toFixed(2);
+
+  renderPeriodSummaries(y, m);
 }
 
 function recomputeCalendarTotals(){
@@ -579,6 +656,8 @@ function recomputeCalendarTotals(){
     const t = weekTotals[i] || 0;
     el.innerHTML = `<div class="wk-lbl">wk</div><div>${t > 0 ? formatHM(t) : '—'}</div>`;
   });
+
+  updatePeriodSummaryValues();
 }
 
 function showTab(tab){
