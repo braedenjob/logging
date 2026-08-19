@@ -63,7 +63,14 @@
   .cal-cell{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px 1px 4px;
     display:flex;flex-direction:column;align-items:center;min-height:50px;}
   .cal-cell.blank{background:transparent;border-color:transparent;}
-  .cal-cell.today{border-color:var(--accent);}
+  .cal-cell.period-a{background:rgba(242,169,0,.10);border-color:rgba(242,169,0,.22);}
+  .cal-cell.period-b{background:rgba(95,196,141,.10);border-color:rgba(95,196,141,.22);}
+  .cal-cell.today{border-color:var(--accent);border-width:2px;}
+  .cal-legend{display:flex;gap:16px;padding:0 18px 10px;font-size:11px;color:var(--text-dim);}
+  .cal-legend .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;
+    vertical-align:middle;}
+  .cal-legend .swatch.a{background:rgba(242,169,0,.35);}
+  .cal-legend .swatch.b{background:rgba(95,196,141,.35);}
   .cal-daynum{font-size:9px;color:var(--text-dim);align-self:flex-start;margin-left:3px;}
   .cal-input{width:100%;background:transparent;border:none;color:var(--text);text-align:center;
     font-size:11.5px;outline:none;padding:2px 0 0;}
@@ -258,7 +265,7 @@
   <div class="start-block">
     <div class="lbl">START TIME</div>
     <div class="start-presets">
-      <button class="preset-btn" id="usualBtn">2:00 PM (usual)</button>
+      <button class="preset-btn" id="usualBtn">1:00 PM (usual)</button>
     </div>
     <div class="start-inputwrap">
       <input id="startInput" type="text" inputmode="numeric" placeholder="e.g. 2 or 230" autocomplete="off">
@@ -317,6 +324,11 @@
     <input id="rateInput" type="number" inputmode="decimal" step="0.01" placeholder="e.g. 22.50">
   </div>
 
+  <div class="cal-legend">
+    <span><span class="swatch a"></span>Pay period A</span>
+    <span><span class="swatch b"></span>Pay period B</span>
+  </div>
+
   <div class="cal-grid" id="calGrid"></div>
 
   <div class="hint">Type hours per day using the same shorthand as tasks — .30 = 30 min, 8 = 8 hours, 8.30 = 8h 30m. Week totals show in the right column.</div>
@@ -337,7 +349,7 @@ const STORAGE_KEY = 'worklog-state-v3';
 const STORAGE_KEY_OLD = 'worklog-state-v2';
 const NAME_KEY = 'worklog-employee-name';
 const QUICK = ['.15', '.30', '.45', '1', '1.30', '2'];
-const USUAL_START = '2';   // 2:00 PM shorthand
+const USUAL_START = '1';   // 1:00 PM shorthand
 
 function emptyNotes(n){
   return Array.from({length:n}, ()=>({name:'', location:'', checked:false, selected:false}));
@@ -446,6 +458,14 @@ function dateKey(y,m,d){
   return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
+const PAY_PERIOD_ANCHOR = new Date(2026, 6, 25); // July 25, 2026 - start of a pay period
+function getPayPeriodParity(y, m, d){
+  const date = new Date(y, m, d);
+  const diffDays = Math.round((date - PAY_PERIOD_ANCHOR) / 86400000);
+  const periodIndex = Math.floor(diffDays / 14);
+  return ((periodIndex % 2) + 2) % 2; // always 0 or 1, even for dates before the anchor
+}
+
 function renderCalendar(){
   const y = calViewYear, m = calViewMonth;
   const label = new Date(y,m,1).toLocaleDateString(undefined,{month:'long', year:'numeric'});
@@ -496,7 +516,8 @@ function renderCalendar(){
       }
       const key = dateKey(y,m,d);
       const isToday = isCurrentMonth && d === today.getDate();
-      cell.className = 'cal-cell' + (isToday ? ' today' : '');
+      const periodClass = getPayPeriodParity(y,m,d) === 0 ? 'period-a' : 'period-b';
+      cell.className = 'cal-cell ' + periodClass + (isToday ? ' today' : '');
       const val = calState.hours[key] || '';
       const hrs = parseDurationHM(val);
       weekTotal += hrs;
