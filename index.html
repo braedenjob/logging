@@ -139,6 +139,11 @@
     padding:12px;transition:opacity .15s;}
   .task.skipped{opacity:.45;}
   .task-top{display:flex;align-items:center;gap:8px;}
+  .task-times{display:flex;align-items:center;justify-content:center;gap:10px;
+    margin-top:8px;padding:8px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);}
+  .task-times .task-start, .task-times .task-clock{font-size:16px;font-weight:700;display:block;text-align:center;}
+  .task-times .task-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;
+    display:block;text-align:center;margin-bottom:1px;}
   .move-btns{display:flex;flex-direction:column;gap:3px;flex-shrink:0;}
   .move-btns button{width:22px;height:15px;font-size:9px;line-height:1;border:1px solid var(--line);
     background:var(--surface2);color:var(--text-dim);border-radius:4px;display:flex;
@@ -152,14 +157,13 @@
     padding:10px 8px;font-size:16px;color:var(--text);text-align:center;outline:none;}
   .dur-input:focus{border-color:var(--accent);}
   .task-arrow{color:var(--text-dim);font-size:14px;}
-  .task-clock{font-size:17px;font-weight:700;flex:1;}
   .icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);
     background:var(--surface2);display:flex;align-items:center;justify-content:center;
-    font-size:14px;color:var(--text-dim);flex-shrink:0;}
+    font-size:14px;color:var(--text-dim);flex-shrink:0;margin-left:auto;}
   .icon-btn.on{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);}
   .icon-btn:active{transform:scale(.94);}
-  .note-input{margin-top:8px;width:100%;background:transparent;border:none;border-top:1px dashed var(--line);
-    padding-top:8px;font-size:13px;color:var(--text-dim);outline:none;}
+  .note-input{margin-top:8px;width:100%;background:transparent;border:none;
+    padding-top:0;font-size:13px;color:var(--text-dim);outline:none;}
   .note-input::placeholder{color:#565c63;}
 
   /* Add controls */
@@ -677,12 +681,16 @@ function recompute(){
   document.getElementById('startClockDisplay').textContent = start===null ? '—' : formatClock12(start);
   let clock = start;
   let total = 0;
+  const startEls = document.querySelectorAll('#rows .task-start');
   const clockEls = document.querySelectorAll('#rows .task-clock');
   state.rows.forEach((row, i)=>{
+    const rowStart = clock;
     const dur = parseDurationHM(row.raw);
     clock = (clock===null) ? null : clock + dur;
-    const el = clockEls[i];
-    if(el) el.textContent = clock===null ? '—' : formatClock12(clock);
+    const startEl = startEls[i];
+    const stopEl = clockEls[i];
+    if(startEl) startEl.textContent = rowStart===null ? '—' : formatClock12(rowStart);
+    if(stopEl) stopEl.textContent = clock===null ? '—' : formatClock12(clock);
     if(!row.skip) total += dur;
   });
 
@@ -723,10 +731,13 @@ function renderRows(){
         </div>
         <div class="badge">${idx+1}</div>
         <input class="dur-input mono" type="number" inputmode="decimal" step="any" placeholder=".30" value="${row.raw}">
-        <span class="task-arrow">→</span>
-        <span class="task-clock mono" id="clock-${row.id}">—</span>
         <button class="icon-btn skip-btn ${row.skip?'on':''}" title="Mark as break">☕</button>
         <button class="icon-btn del-btn" title="Delete">✕</button>
+      </div>
+      <div class="task-times">
+        <div><span class="task-lbl">Start</span><span class="task-start mono">—</span></div>
+        <span class="task-arrow">→</span>
+        <div><span class="task-lbl">Stop</span><span class="task-clock mono">—</span></div>
       </div>
       <input class="note-input" type="text" placeholder="note (optional)" value="${row.note||''}">
     `;
