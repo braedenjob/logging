@@ -310,7 +310,7 @@
     <div class="notes-count" id="notesCount"></div>
   </div>
 
-  <div class="hint">Type your start time — 2 or 6 or 9 for a plain hour, 230 or 830 for hour+minutes (defaults to PM), or 1400/0600 for exact 24-hour time. Tap "2:00 PM" for your usual shift. Then log tasks — .30 = 30 min, .45 = 45 min, 1 = 1 hour, 1.15 = 1h 15m. Tap ☕ to mark a break so it's skipped from your total.</div>
+  <div class="hint">Type your start time — 2 or 6 or 9 for a plain hour, 230 or 830 for hour+minutes (defaults to PM), or 1400/0600 for exact 24-hour time. Tap "2:00 PM" for your usual shift. Then log tasks in quarter hours — .25 = 15 min, .5 = 30 min, .75 = 45 min, 1 = 1 hour, 1.5 = 1h 30m. Tap ☕ to mark a break so it's skipped from your total.</div>
 
   </div>
 
@@ -347,7 +347,7 @@
 
   <div class="cal-grid" id="calGrid"></div>
 
-  <div class="hint">Type hours per day using the same shorthand as tasks — .30 = 30 min, 8 = 8 hours, 8.30 = 8h 30m. Week totals show in the right column.</div>
+  <div class="hint">Type hours per day in quarter hours — .25 = 15 min, .5 = 30 min, .75 = 45 min, 8 = 8 hours, 8.5 = 8h 30m. Week totals show in the right column.</div>
 
   </div>
 
@@ -364,7 +364,7 @@
 const STORAGE_KEY = 'worklog-state-v3';
 const STORAGE_KEY_OLD = 'worklog-state-v2';
 const NAME_KEY = 'worklog-employee-name';
-const QUICK = ['.15', '.30', '.45', '1', '1.30', '2'];
+const QUICK = ['.25', '.5', '.75', '1', '1.5', '2'];
 const USUAL_START = '1';   // 1:00 PM shorthand
 
 function emptyNotes(n){
@@ -403,12 +403,11 @@ function parseStartTimeText(raw){ // flexible typed shorthand: "2", "230", "1400
   return hour + minute/60;
 }
 function parseDurationHM(v){
+  // Standard decimal hours: .25 = 15 min, .5 = 30 min, .75 = 45 min, 1 = 1 hour, 1.5 = 1h30m
   if(v==='' || v===null || v===undefined) return 0;
   const n = parseFloat(v);
   if(isNaN(n)) return 0;
-  const intPart = Math.trunc(n);
-  const fracPart = Math.round((Math.abs(n)-Math.abs(intPart))*100);
-  return intPart + fracPart/60;
+  return n;
 }
 function formatClock12(hoursFloat){
   if(hoursFloat===null || hoursFloat===undefined) return '—';
@@ -730,7 +729,7 @@ function renderRows(){
           <button class="move-down" ${idx===state.rows.length-1 ? 'disabled' : ''} title="Move down">▼</button>
         </div>
         <div class="badge">${idx+1}</div>
-        <input class="dur-input mono" type="number" inputmode="decimal" step="any" placeholder=".30" value="${row.raw}">
+        <input class="dur-input mono" type="number" inputmode="decimal" step="any" placeholder=".5" value="${row.raw}">
         <button class="icon-btn skip-btn ${row.skip?'on':''}" title="Mark as break">☕</button>
         <button class="icon-btn del-btn" title="Delete">✕</button>
       </div>
@@ -871,7 +870,7 @@ function moveSelectedNotesToLog(){
     const name = r.name.trim();
     const loc = (r.location||'').trim();
     const note = loc ? `${name} (${loc})` : name;
-    state.rows.push({ id: uid(), raw: '.30', skip:false, note });
+    state.rows.push({ id: uid(), raw: '.5', skip:false, note });
   });
   state.notes.forEach(r=>{ if(r.selected) r.selected = false; });
   renderNotesGrid();
