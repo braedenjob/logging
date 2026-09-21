@@ -430,26 +430,26 @@ function formatHM(hoursFloat){
   if(m===60){ m=0; h+=1; }
   return `${h}:${String(m).padStart(2,'0')}`;
 }
-async function saveState(){
-  try{ await window.storage.set(STORAGE_KEY, JSON.stringify(state), false); }catch(e){}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
 }
-async function saveName(name){
-  try{ await window.storage.set(NAME_KEY, name, false); }catch(e){}
+function saveName(name){
+  try{ localStorage.setItem(NAME_KEY, name); }catch(e){}
 }
-async function saveCalState(){
-  try{ await window.storage.set(CAL_STORAGE_KEY, JSON.stringify(calState), false); }catch(e){}
+function saveCalState(){
+  try{ localStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(calState)); }catch(e){}
 }
-async function loadAll(){
+function loadAll(){
   try{
-    const res = await window.storage.get(STORAGE_KEY);
-    if(res && res.value){
-      state = JSON.parse(res.value);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      state = JSON.parse(raw);
     } else {
       // migrate from the older time-picker format if present
       try{
-        const old = await window.storage.get(STORAGE_KEY_OLD);
-        if(old && old.value){
-          const oldState = JSON.parse(old.value);
+        const oldRaw = localStorage.getItem(STORAGE_KEY_OLD);
+        if(oldRaw){
+          const oldState = JSON.parse(oldRaw);
           state = {
             startRaw: oldState.startTime ? oldState.startTime.replace(':','') : '',
             rows: oldState.rows || [],
@@ -460,12 +460,12 @@ async function loadAll(){
     }
   }catch(e){}
   try{
-    const res2 = await window.storage.get(NAME_KEY);
-    if(res2 && res2.value) document.getElementById('employeeName').value = res2.value;
+    const name = localStorage.getItem(NAME_KEY);
+    if(name) document.getElementById('employeeName').value = name;
   }catch(e){}
   try{
-    const res3 = await window.storage.get(CAL_STORAGE_KEY);
-    if(res3 && res3.value) calState = JSON.parse(res3.value);
+    const rawCal = localStorage.getItem(CAL_STORAGE_KEY);
+    if(rawCal) calState = JSON.parse(rawCal);
   }catch(e){}
 }
 
@@ -914,7 +914,12 @@ function moveSelectedNotesToLog(){
     const note = loc ? `${name} (${loc})` : name;
     state.rows.push({ id: uid(), raw: '.5', skip:false, note });
   });
-  state.notes.forEach(r=>{ if(r.selected) r.selected = false; });
+  state.notes.forEach(r=>{
+    if(r.selected){
+      r.selected = false;
+      r.checked = true;
+    }
+  });
   renderNotesGrid();
   renderRows();
   recompute();
@@ -1091,9 +1096,9 @@ document.getElementById('rateInput').addEventListener('input', e=>{
   recomputeCalendarTotals();
 });
 
-(async function init(){
+(function init(){
   setDateLabel();
-  await loadAll();
+  loadAll();
   renderNotesGrid();
   renderChips();
   renderRows();
