@@ -202,10 +202,11 @@
   .sort-btn{background:var(--surface2);border:1px solid var(--line);color:var(--text-dim);
     font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:20px;}
   .sort-btn.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
-  .notes-headers{display:grid;grid-template-columns:24px 1fr 1fr 30px 30px;gap:8px;padding:0 2px 6px;}
+  .notes-headers{display:grid;grid-template-columns:20px 24px 1fr 1fr 30px 30px;gap:8px;padding:0 2px 6px;}
   .notes-headers span{font-size:10.5px;font-weight:700;letter-spacing:.08em;color:#5b6167;text-transform:uppercase;}
   .notes-rows{display:flex;flex-direction:column;gap:8px;}
-  .notes-row{display:grid;grid-template-columns:24px 1fr 1fr 30px 30px;gap:8px;align-items:center;}
+  .notes-row{display:grid;grid-template-columns:20px 24px 1fr 1fr 30px 30px;gap:8px;align-items:center;}
+  .notes-row .row-num{font-size:11px;color:var(--text-dim);text-align:center;font-weight:600;}
   .notes-row.spacer{background:transparent;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);
     padding:6px 0;}
   .notes-row input[type="checkbox"]{width:20px;height:20px;accent-color:var(--accent);}
@@ -307,7 +308,7 @@
         <button class="sort-btn" id="sortLocationBtn">Sort by Location</button>
       </div>
     </div>
-    <div class="notes-headers"><span></span><span>Name</span><span>Location</span><span></span><span></span></div>
+    <div class="notes-headers"><span>#</span><span></span><span>Name</span><span>Location</span><span></span><span></span></div>
     <div class="notes-rows" id="notesRows"></div>
     <button class="add-row-btn" id="addNoteRowBtn">+ Add row</button>
     <button class="move-to-log-btn" id="moveToLogBtn">→ Move selected to Time Sheet</button>
@@ -853,6 +854,7 @@ function renderNotesGrid(){
     const el = document.createElement('div');
     el.className = 'notes-row' + (row.checked ? ' checked' : '') + (isBlank ? ' spacer' : '') + (isDup ? ' dup-name' : '');
     el.innerHTML = `
+      <span class="row-num">${i+1}</span>
       <input type="checkbox" class="select-input" title="Select to move" ${row.selected ? 'checked' : ''}>
       <input type="text" class="name-input" placeholder="e.g. AHU-3" value="${row.name || ''}" title="${isDup ? 'Duplicate name — appears more than once' : ''}">
       <input type="text" class="loc-input" placeholder="e.g. Building 4" value="${row.location || ''}">
