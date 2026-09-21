@@ -369,6 +369,8 @@
 const STORAGE_KEY = 'worklog-state-v3';
 const STORAGE_KEY_OLD = 'worklog-state-v2';
 const NAME_KEY = 'worklog-employee-name';
+const FILE_NAME_KEY = 'worklog-filename';
+let currentFileName = 'worklog-backup.json';
 const QUICK = ['.25', '.5', '.75', '1', '1.5', '2'];
 const USUAL_START = '1';   // 1:00 PM shorthand
 
@@ -466,6 +468,10 @@ function loadAll(){
   try{
     const rawCal = localStorage.getItem(CAL_STORAGE_KEY);
     if(rawCal) calState = JSON.parse(rawCal);
+  }catch(e){}
+  try{
+    const rawName = localStorage.getItem(FILE_NAME_KEY);
+    if(rawName) currentFileName = rawName;
   }catch(e){}
 }
 
@@ -997,7 +1003,7 @@ function exportData(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'worklog-backup.json';
+  a.download = currentFileName;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -1006,7 +1012,7 @@ function exportData(){
 
 function importDataFromFile(file){
   const reader = new FileReader();
-  reader.onload = e=>{
+  reader.onload = async e=>{
     try{
       const payload = JSON.parse(e.target.result);
       const incoming = payload.state ? payload.state : payload;
@@ -1024,6 +1030,8 @@ function importDataFromFile(file){
         saveCalState();
       }
       if(payload.employeeName) document.getElementById('employeeName').value = payload.employeeName;
+      currentFileName = file.name || currentFileName;
+      try{ localStorage.setItem(FILE_NAME_KEY, currentFileName); }catch(e){}
       renderNotesGrid();
       renderRows();
       recompute();
