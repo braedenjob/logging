@@ -153,6 +153,8 @@
   .badge{width:26px;height:26px;border-radius:8px;background:var(--surface2);
     display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
     color:var(--text-dim);flex-shrink:0;}
+  .pos-input{width:38px;height:30px;border:1px solid var(--line);text-align:center;padding:0;font-family:inherit;-moz-appearance:textfield;}
+  .pos-input::-webkit-outer-spin-button,.pos-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
   .dur-input{width:64px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;
     padding:10px 8px;font-size:16px;color:var(--text);text-align:center;outline:none;}
   .dur-input:focus{border-color:var(--accent);}
@@ -202,6 +204,7 @@
   .sort-btn{background:var(--surface2);border:1px solid var(--line);color:var(--text-dim);
     font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:20px;}
   .sort-btn.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  .sort-btn:disabled{opacity:.35;}
   .notes-headers{display:grid;grid-template-columns:20px 24px 1fr 1fr 30px 30px;gap:8px;padding:0 2px 6px;}
   .notes-headers span{font-size:10.5px;font-weight:700;letter-spacing:.08em;color:#5b6167;text-transform:uppercase;}
   .notes-rows{display:flex;flex-direction:column;gap:8px;}
@@ -303,9 +306,11 @@
     <div class="notes-toolbar">
       <div class="lbl" style="margin-bottom:0;">NOTES</div>
       <div class="notes-actions">
+        <button class="sort-btn" id="undoDeleteBtn" disabled>↩ Undo delete</button>
         <button class="sort-btn" id="checkAllBtn">☑ Select all</button>
         <button class="sort-btn" id="uncheckAllBtn">☐ Unselect all</button>
-        <button class="sort-btn" id="sortLocationBtn">Sort by Location</button>
+        <button class="sort-btn" id="sortLocationBtn">Sort Snake (1-3, 3-1)</button>
+        <button class="sort-btn" id="sortLocationStraightBtn">Sort Straight (1-3, 1-3)</button>
       </div>
     </div>
     <div class="notes-headers"><span>#</span><span></span><span>Name</span><span>Location</span><span></span><span></span></div>
@@ -381,6 +386,7 @@ function defaultNotesGrid(){
   return emptyNotes(6); // index 2 (3rd row) is always treated as a fixed empty spacer
 }
 let state = { startRaw: '', rows: [], notes: defaultNotesGrid() };
+let deletedNotesStack = []; // session-only undo history for deleted notes rows
 
 const CAL_STORAGE_KEY = 'worklog-calendar-v1';
 let calState = { rate: '', hours: {} };
@@ -739,7 +745,7 @@ function renderRows(){
           <button class="move-up" ${idx===0 ? 'disabled' : ''} title="Move up">▲</button>
           <button class="move-down" ${idx===state.rows.length-1 ? 'disabled' : ''} title="Move down">▼</button>
         </div>
-        <div class="badge">${idx+1}</div>
+        <input class="badge pos-input mono" type="number" inputmode="numeric" min="1" max="${state.rows.length}" value="${idx+1}" title="Type a number to move this task">
         <input class="dur-input mono" type="number" inputmode="decimal" step="any" placeholder=".5" value="${row.raw}">
         <button class="icon-btn skip-btn ${row.skip?'on':''}" title="Mark as break">☕</button>
         <button class="icon-btn del-btn" title="Delete">✕</button>
@@ -766,10 +772,25 @@ function renderRows(){
       renderRows();
       recompute();
     });
+    el.querySelector('.pos-input').addEventListener('change', e=>{
+      const n = parseInt(e.target.value,10);
+      if(isNaN(n)){ e.target.value = idx+1; return; }
+      moveTaskTo(row.id, n);
+    });
     el.querySelector('.move-up').addEventListener('click', ()=> moveTask(row.id, -1));
     el.querySelector('.move-down').addEventListener('click', ()=> moveTask(row.id, 1));
     container.appendChild(el);
   });
+}
+
+function moveTaskTo(id, pos){
+  const idx = state.rows.findIndex(r=>r.id===id);
+  if(idx===-1) return;
+  const newIdx = Math.max(0, Math.min(state.rows.length-1, pos-1));
+  const [item] = state.rows.splice(idx,1);
+  state.rows.splice(newIdx,0,item);
+  renderRows();
+  recompute();
 }
 
 function moveTask(id, direction){
@@ -892,16 +913,38 @@ function renderNotesGrid(){
       saveState();
     });
     el.querySelector('.del-btn').addEventListener('click', ()=>{
+      deletedNotesStack.push({ row: state.notes[i], index: i });
+      if(deletedNotesStack.length > 20) deletedNotesStack.shift();
       state.notes.splice(i,1);
       if(state.notes.length===0) state.notes.push({name:'',location:'',checked:false,selected:false});
       renderNotesGrid();
       saveState();
+      updateUndoButton();
     });
     container.appendChild(el);
   });
 
   updateNotesCount();
 }
+function updateUndoButton(){
+  const btn = document.getElementById('undoDeleteBtn');
+  btn.disabled = deletedNotesStack.length === 0;
+}
+
+function undoLastDelete(){
+  if(deletedNotesStack.length === 0) return;
+  const { row, index } = deletedNotesStack.pop();
+  // if the list is just the auto-added blank placeholder, replace it instead of stacking a stray blank
+  if(state.notes.length === 1 && !state.notes[0].name && !state.notes[0].location){
+    state.notes = [];
+  }
+  const insertAt = Math.min(index, state.notes.length);
+  state.notes.splice(insertAt, 0, row);
+  renderNotesGrid();
+  saveState();
+  updateUndoButton();
+}
+
 function setAllNotesSelected(value){
   state.notes.forEach(r => r.selected = value);
   renderNotesGrid();
@@ -947,32 +990,55 @@ function parseLocationCode(locRaw){
   return { prefix: loc, digits: 0, letter: loc.slice(-1) };
 }
 
-function sortByLocation(){
+function sortByLocation(straight){
   const fixedIdx = [];
   const movable = [];
+  const noLocation = [];
   state.notes.forEach((r, idx)=>{
     const isBlank = !(r.name && r.name.trim()) && !(r.location && r.location.trim());
-    if(isBlank) fixedIdx.push(idx);   // empty rows stay exactly where they are
-    else movable.push(r);
+    if(isBlank){ fixedIdx.push(idx); return; }   // empty rows stay exactly where they are
+    const p = parseLocationCode(r.location);
+    if(p.prefix===null){ noLocation.push(r); return; }  // has a name but no location
+    movable.push(r);
   });
-  movable.sort((a,b)=>{
-    const pa = parseLocationCode(a.location);
-    const pb = parseLocationCode(b.location);
-    if(pa.prefix===null && pb.prefix===null) return 0;
-    if(pa.prefix===null) return 1;   // has a name but no location -> sinks within the sortable group
-    if(pb.prefix===null) return -1;
-    if(pa.prefix < pb.prefix) return -1;   // group matching prefixes (e.g. "D1-") together
-    if(pa.prefix > pb.prefix) return 1;
-    if(pa.letter < pb.letter) return -1;   // then by last letter within that group
-    if(pa.letter > pb.letter) return 1;
-    if(pa.digits < pb.digits) return -1;   // then numerically
-    if(pa.digits > pb.digits) return 1;
-    return 0;
+
+  // group by prefix (e.g. "rr-b ", "d1-", or "" for plain codes)
+  const byPrefix = {};
+  movable.forEach(r=>{
+    const p = parseLocationCode(r.location).prefix;
+    if(!byPrefix[p]) byPrefix[p] = [];
+    byPrefix[p].push(r);
   });
+  const prefixKeys = Object.keys(byPrefix).sort();
+
+  const sortedMovable = [];
+  prefixKeys.forEach(prefix=>{
+    const rows = byPrefix[prefix];
+    // sub-group by trailing letter (the "row" in a factory aisle sense)
+    const byLetter = {};
+    rows.forEach(r=>{
+      const letter = parseLocationCode(r.location).letter;
+      if(!byLetter[letter]) byLetter[letter] = [];
+      byLetter[letter].push(r);
+    });
+    const letterKeys = Object.keys(byLetter).sort();
+    letterKeys.forEach((letter, g)=>{
+      const group = byLetter[letter];
+      const ascending = straight === true ? true : (g % 2 === 0);  // alternate direction each row, like walking a factory aisle
+      group.sort((a,b)=>{
+        const da = parseLocationCode(a.location).digits;
+        const db = parseLocationCode(b.location).digits;
+        return ascending ? da-db : db-da;
+      });
+      sortedMovable.push(...group);
+    });
+  });
+
+  const finalMovable = [...sortedMovable, ...noLocation];
   const result = new Array(state.notes.length);
   let mi = 0;
   for(let idx=0; idx<state.notes.length; idx++){
-    result[idx] = fixedIdx.includes(idx) ? state.notes[idx] : movable[mi++];
+    result[idx] = fixedIdx.includes(idx) ? state.notes[idx] : finalMovable[mi++];
   }
   state.notes = result;
   renderNotesGrid();
@@ -1012,7 +1078,7 @@ function exportData(){
 
 function importDataFromFile(file){
   const reader = new FileReader();
-  reader.onload = async e=>{
+  reader.onload = e=>{
     try{
       const payload = JSON.parse(e.target.result);
       const incoming = payload.state ? payload.state : payload;
@@ -1055,7 +1121,9 @@ document.getElementById('usualBtn').addEventListener('click', ()=>{
 });
 document.getElementById('addBtn').addEventListener('click', ()=> addRow(''));
 document.getElementById('addNoteRowBtn').addEventListener('click', addNoteRow);
-document.getElementById('sortLocationBtn').addEventListener('click', sortByLocation);
+document.getElementById('sortLocationBtn').addEventListener('click', ()=> sortByLocation(false));
+document.getElementById('sortLocationStraightBtn').addEventListener('click', ()=> sortByLocation(true));
+document.getElementById('undoDeleteBtn').addEventListener('click', undoLastDelete);
 document.getElementById('checkAllBtn').addEventListener('click', ()=> setAllNotesSelected(true));
 document.getElementById('uncheckAllBtn').addEventListener('click', ()=> setAllNotesSelected(false));
 document.getElementById('moveToLogBtn').addEventListener('click', moveSelectedNotesToLog);
