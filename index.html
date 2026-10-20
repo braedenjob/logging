@@ -311,6 +311,7 @@
         <button class="sort-btn" id="uncheckAllBtn">☐ Unselect all</button>
         <button class="sort-btn" id="sortLocationBtn">Sort Snake (1-3, 3-1)</button>
         <button class="sort-btn" id="sortLocationStraightBtn">Sort Straight (1-3, 1-3)</button>
+        <button class="sort-btn" id="sortLocationNumBtn">Sort by Number (A-D, D-A)</button>
       </div>
     </div>
     <div class="notes-headers"><span>#</span><span></span><span>Name</span><span>Location</span><span></span><span></span></div>
@@ -990,7 +991,7 @@ function parseLocationCode(locRaw){
   return { prefix: loc, digits: 0, letter: loc.slice(-1) };
 }
 
-function sortByLocation(straight){
+function sortByLocation(straight, byNumber){
   const fixedIdx = [];
   const movable = [];
   const noLocation = [];
@@ -1014,6 +1015,24 @@ function sortByLocation(straight){
   const sortedMovable = [];
   prefixKeys.forEach(prefix=>{
     const rows = byPrefix[prefix];
+    if(byNumber){
+      // group by number (column), letters alternate A-Z then Z-A each column
+      const byNum = {};
+      rows.forEach(r=>{
+        const d = parseLocationCode(r.location).digits;
+        if(!byNum[d]) byNum[d] = [];
+        byNum[d].push(r);
+      });
+      Object.keys(byNum).map(Number).sort((a,b)=>a-b).forEach((d, g)=>{
+        const asc = (g % 2 === 0);
+        byNum[d].sort((a,b)=>{
+          const la = parseLocationCode(a.location).letter, lb = parseLocationCode(b.location).letter;
+          return asc ? (la<lb?-1:la>lb?1:0) : (la<lb?1:la>lb?-1:0);
+        });
+        sortedMovable.push(...byNum[d]);
+      });
+      return;
+    }
     // sub-group by trailing letter (the "row" in a factory aisle sense)
     const byLetter = {};
     rows.forEach(r=>{
@@ -1121,8 +1140,9 @@ document.getElementById('usualBtn').addEventListener('click', ()=>{
 });
 document.getElementById('addBtn').addEventListener('click', ()=> addRow(''));
 document.getElementById('addNoteRowBtn').addEventListener('click', addNoteRow);
-document.getElementById('sortLocationBtn').addEventListener('click', ()=> sortByLocation(false));
-document.getElementById('sortLocationStraightBtn').addEventListener('click', ()=> sortByLocation(true));
+document.getElementById('sortLocationBtn').addEventListener('click', ()=> sortByLocation(false, false));
+document.getElementById('sortLocationStraightBtn').addEventListener('click', ()=> sortByLocation(true, false));
+document.getElementById('sortLocationNumBtn').addEventListener('click', ()=> sortByLocation(false, true));
 document.getElementById('undoDeleteBtn').addEventListener('click', undoLastDelete);
 document.getElementById('checkAllBtn').addEventListener('click', ()=> setAllNotesSelected(true));
 document.getElementById('uncheckAllBtn').addEventListener('click', ()=> setAllNotesSelected(false));
