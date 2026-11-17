@@ -213,6 +213,7 @@
   .notes-row.spacer{background:transparent;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);
     padding:6px 0;}
   .notes-row input[type="checkbox"]{width:20px;height:20px;accent-color:var(--accent);}
+  #notesRows.hide-done .notes-row.checked{display:none;}
   .notes-row.checked input[type="text"]{color:var(--text-dim);text-decoration:line-through;
     text-decoration-color:var(--text-dim);}
   .notes-row input[type="text"]{width:100%;background:var(--surface);border:1px solid var(--line);
@@ -235,6 +236,8 @@
   .add-row-btn:active{border-color:var(--accent);color:var(--accent);}
   .notes-count{margin-top:10px;text-align:center;font-size:12px;color:var(--text-dim);}
   .notes-count strong{color:var(--text);font-weight:700;}
+  .task.dup-task{border-color:var(--danger);background:rgba(232,96,76,.08);}
+  .task-dup-warn{margin:8px 18px 0;font-size:13px;}
   .dup-warning{color:var(--danger);font-weight:700;}
 
   .notes-row.dup-name{background:rgba(232,96,76,.08);}
@@ -295,6 +298,7 @@
     </div>
   </div>
 
+  <div class="task-dup-warn dup-warning" id="taskDupWarn" style="display:none;"></div>
   <div class="rows" id="rows"></div>
 
   <div class="add-block">
@@ -306,6 +310,7 @@
     <div class="notes-toolbar">
       <div class="lbl" style="margin-bottom:0;">NOTES</div>
       <div class="notes-actions">
+        <button class="sort-btn" id="hideDoneBtn">Hide done</button>
         <button class="sort-btn" id="undoDeleteBtn" disabled>↩ Undo delete</button>
         <button class="sort-btn" id="checkAllBtn">☑ Select all</button>
         <button class="sort-btn" id="uncheckAllBtn">☐ Unselect all</button>
@@ -690,7 +695,29 @@ function showTab(tab){
   if(tab==='calendar') renderCalendar();
 }
 
+function updateTaskDuplicates(){
+  const counts = {};
+  state.rows.forEach(r=>{
+    const k = (r.note||'').trim().toLowerCase();
+    if(k) counts[k] = (counts[k]||0) + 1;
+  });
+  const els = document.querySelectorAll('#rows .task');
+  let dupCount = 0;
+  Object.keys(counts).forEach(k=>{ if(counts[k]>1) dupCount++; });
+  state.rows.forEach((r, i)=>{
+    const k = (r.note||'').trim().toLowerCase();
+    const isDup = !!k && counts[k] > 1;
+    if(els[i]) els[i].classList.toggle('dup-task', isDup);
+  });
+  const w = document.getElementById('taskDupWarn');
+  if(w){
+    w.style.display = dupCount ? '' : 'none';
+    w.textContent = dupCount ? `⚠ ${dupCount} duplicate task${dupCount>1?'s':''} on the sheet` : '';
+  }
+}
+
 function recompute(){
+  updateTaskDuplicates();
   document.getElementById('startInput').value = state.startRaw;
   document.getElementById('usualBtn').classList.toggle('active', state.startRaw===USUAL_START);
 
@@ -761,7 +788,7 @@ function renderRows(){
     const durInput = el.querySelector('.dur-input');
     durInput.addEventListener('input', e=>{ row.raw = e.target.value; recompute(); });
     const noteInput = el.querySelector('.note-input');
-    noteInput.addEventListener('input', e=>{ row.note = e.target.value; saveState(); });
+    noteInput.addEventListener('input', e=>{ row.note = e.target.value; saveState(); updateTaskDuplicates(); });
     el.querySelector('.skip-btn').addEventListener('click', ()=>{
       row.skip = !row.skip;
       el.classList.toggle('skipped', row.skip);
@@ -911,6 +938,7 @@ function renderNotesGrid(){
       el.classList.toggle('checked', state.notes[i].checked);
       el.querySelector('.complete-btn').classList.toggle('on', state.notes[i].checked);
       updateNotesCount();
+      updateHideDone();
       saveState();
     });
     el.querySelector('.del-btn').addEventListener('click', ()=>{
@@ -926,6 +954,18 @@ function renderNotesGrid(){
   });
 
   updateNotesCount();
+  updateHideDone();
+}
+const HIDE_DONE_KEY = 'worklog-hide-done';
+let hideDone = false;
+try{ hideDone = localStorage.getItem(HIDE_DONE_KEY) === '1'; }catch(e){}
+function updateHideDone(){
+  const c = document.getElementById('notesRows');
+  const b = document.getElementById('hideDoneBtn');
+  if(!c || !b) return;
+  const n = state.notes.filter(r=>r.checked && ((r.name||'').trim() || (r.location||'').trim())).length;
+  c.classList.toggle('hide-done', hideDone);
+  b.textContent = hideDone ? `Show done (${n})` : `Hide done (${n})`;
 }
 function updateUndoButton(){
   const btn = document.getElementById('undoDeleteBtn');
@@ -958,10 +998,14 @@ function moveSelectedNotesToLog(){
     alert('Check the boxes next to the items you want to move first.');
     return;
   }
+  const existing = new Set(state.rows.map(r=>(r.note||'').trim().toLowerCase()).filter(Boolean));
+  const dupes = [];
   selected.forEach(r=>{
     const name = r.name.trim();
     const loc = (r.location||'').trim();
     const note = loc ? `${name} (${loc})` : name;
+    if(existing.has(note.toLowerCase())) dupes.push(note);
+    existing.add(note.toLowerCase());
     state.rows.push({ id: uid(), raw: '.5', skip:false, note });
   });
   state.notes.forEach(r=>{
@@ -975,6 +1019,7 @@ function moveSelectedNotesToLog(){
   recompute();
   saveState();
   showTab('log');
+  if(dupes.length) alert('Already on the time sheet:\n' + dupes.join('\n'));
 }
 
 function addNoteRow(){
@@ -1145,6 +1190,11 @@ document.getElementById('sortLocationStraightBtn').addEventListener('click', ()=
 document.getElementById('sortLocationNumBtn').addEventListener('click', ()=> sortByLocation(false, true));
 document.getElementById('undoDeleteBtn').addEventListener('click', undoLastDelete);
 document.getElementById('checkAllBtn').addEventListener('click', ()=> setAllNotesSelected(true));
+document.getElementById('hideDoneBtn').addEventListener('click', ()=>{
+  hideDone = !hideDone;
+  try{ localStorage.setItem(HIDE_DONE_KEY, hideDone ? '1' : '0'); }catch(e){}
+  updateHideDone();
+});
 document.getElementById('uncheckAllBtn').addEventListener('click', ()=> setAllNotesSelected(false));
 document.getElementById('moveToLogBtn').addEventListener('click', moveSelectedNotesToLog);
 document.getElementById('clearTasksBtn').addEventListener('click', ()=>{
